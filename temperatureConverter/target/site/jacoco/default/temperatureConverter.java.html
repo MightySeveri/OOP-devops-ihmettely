@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>temperatureConverter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">temperature-converter</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">temperatureConverter.java</span></div><h1>temperatureConverter.java</h1><pre class="source lang-java linenums"><span class="fc" id="L1">public class temperatureConverter {</span>
+    double fahrenheit;
+    double celsius;
+
+    double fahrenheitToCelsius (double fahrenheit) {
+<span class="fc" id="L6">        double conversion = (fahrenheit - 32) * 5 / 9;</span>
+
+<span class="fc" id="L8">        return conversion;</span>
+    }
+
+     double celsiusToFahrenheit (double celsius) {
+<span class="fc" id="L12">        double conversion = (celsius * 9/5) + 32;</span>
+
+<span class="fc" id="L14">        return conversion;</span>
+    }
+
+    boolean isExtremeTemperature(double celsius) {
+<span class="fc bfc" id="L18" title="All 2 branches covered.">        if (celsius&lt;-40) {</span>
+<span class="fc" id="L19">            return true;</span>
+<span class="fc bfc" id="L20" title="All 2 branches covered.">        } else if (celsius &gt;50) {</span>
+<span class="fc" id="L21">            return true;</span>
+        } else {
+<span class="fc" id="L23">            return false;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
