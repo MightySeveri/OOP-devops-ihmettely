@@ -14,13 +14,19 @@
 <span class="fc" id="L14">        return conversion;</span>
     }
 
+    double kelvinToCelsius(double kelvin) {
+<span class="fc" id="L18">    double conversion = kelvin - 273.15;</span>
+
+<span class="fc" id="L20">    return conversion;</span>
+}
+
     boolean isExtremeTemperature(double celsius) {
-<span class="fc bfc" id="L18" title="All 2 branches covered.">        if (celsius&lt;-40) {</span>
-<span class="fc" id="L19">            return true;</span>
-<span class="fc bfc" id="L20" title="All 2 branches covered.">        } else if (celsius &gt;50) {</span>
-<span class="fc" id="L21">            return true;</span>
+<span class="fc bfc" id="L24" title="All 2 branches covered.">        if (celsius&lt;-40) {</span>
+<span class="fc" id="L25">            return true;</span>
+<span class="fc bfc" id="L26" title="All 2 branches covered.">        } else if (celsius &gt;50) {</span>
+<span class="fc" id="L27">            return true;</span>
         } else {
-<span class="fc" id="L23">            return false;</span>
+<span class="fc" id="L29">            return false;</span>
         }
     }
 }

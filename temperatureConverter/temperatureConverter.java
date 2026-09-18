@@ -14,6 +14,12 @@ public class temperatureConverter {
         return conversion;
     }
 
+    double kelvinToCelsius(double kelvin) {
+    double conversion = kelvin - 273.15;
+
+    return conversion;
+}
+
     boolean isExtremeTemperature(double celsius) {
         if (celsius<-40) {
             return true;
