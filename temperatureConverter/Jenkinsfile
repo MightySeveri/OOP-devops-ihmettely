@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    options {
-        skipDefaultCheckout(true)
-        timestamps()
-    }
-
     environment {
         DOCKER_IMAGE = 'mightyseveri/severi-temperatureconverter-pipeline'
     }
@@ -18,10 +13,26 @@ pipeline {
             }
         }
 
-        stage('Build & Test') {
+        stage('Build') {
             steps {
                 dir('temperatureConverter') {
-                    sh 'mvn -B clean verify'
+                    sh 'mvn clean install'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('temperatureConverter') {
+                    sh 'mvn test'
+                }
+            }
+        }
+
+        stage('Code Coverage') {
+            steps {
+                dir('temperatureConverter') {
+                    sh 'mvn jacoco:report'
                 }
             }
         }
@@ -32,13 +43,9 @@ pipeline {
             }
         }
 
-        stage('Publish Coverage') {
+        stage('Publish Coverage Report') {
             steps {
-                jacoco(
-                    execPattern: 'temperatureConverter/target/*.exec',
-                    classPattern: 'temperatureConverter/target/classes',
-                    sourcePattern: 'temperatureConverter'
-                )
+                jacoco()
             }
         }
 
@@ -50,7 +57,15 @@ pipeline {
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Run Docker Image') {
+            steps {
+                dir('temperatureConverter') {
+                    sh 'docker run --rm $DOCKER_IMAGE:latest'
+                }
+            }
+        }
+
+        stage('Docker Hub Login') {
             steps {
                 withCredentials([
                     usernamePassword(
@@ -60,8 +75,7 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        echo "$DOCKER_PASSWORD" | \
-                        docker login \
+                        echo "$DOCKER_PASSWORD" | docker login \
                             --username "$DOCKER_USERNAME" \
                             --password-stdin
                     '''
@@ -69,7 +83,7 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Push to Docker Hub') {
             steps {
                 sh 'docker push $DOCKER_IMAGE:latest'
             }
