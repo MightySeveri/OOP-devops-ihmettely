@@ -4,9 +4,11 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/MightySeveri/OOP-devops-ihmettely'
+                git branch: 'main',
+                    url: 'https://github.com/MightySeveri/OOP-devops-ihmettely'
             }
         }
+
 
         stage('Build') {
             steps {
