@@ -5,3 +5,11 @@ come from a SQLite `units` table. Each conversion is saved in a related
 `conversions` table and the 20 most recent conversions appear in the window.
 
 The app creates `conversions.db` in that directory on first launch.
+
+## proven command to run on Fedora 44
+docker run --pull=always --rm --network none \
+  --security-opt label=disable \
+  -e DISPLAY -e XAUTHORITY=/tmp/.Xauthority \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v "$XAUTHORITY:/tmp/.Xauthority:ro" \
+  mightyseveri/severi-temperatureconverter-pipeline:latest
