@@ -9,6 +9,6 @@ WORKDIR /app
 COPY pom.xml .
 COPY . .
 
-RUN mvn clean test
+RUN mvn clean test dependency:go-offline
 
-CMD ["mvn", "javafx:run"]
+CMD ["mvn", "-o", "javafx:run"]
