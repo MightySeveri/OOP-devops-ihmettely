@@ -29,4 +29,11 @@ class temperatureConverterTest {
         assertTrue(converter.isExtremeTemperature(51.0));
         assertFalse(converter.isExtremeTemperature(20.0));
     }
+
+    @Test
+    void convertsBetweenAllUnits() {
+        assertEquals(212, converter.convert(100, "Celsius", "Fahrenheit"), 0.001);
+        assertEquals(373.15, converter.convert(212, "Fahrenheit", "Kelvin"), 0.001);
+        assertEquals(32, converter.convert(273.15, "Kelvin", "Fahrenheit"), 0.001);
+    }
 }

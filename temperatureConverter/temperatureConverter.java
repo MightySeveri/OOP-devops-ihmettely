@@ -29,4 +29,17 @@ public class temperatureConverter {
             return false;
         }
     }
+
+    double convert(double value, String from, String to) {
+        double celsiusValue = switch (from) {
+            case "Fahrenheit" -> fahrenheitToCelsius(value);
+            case "Kelvin" -> kelvinToCelsius(value);
+            default -> value;
+        };
+        return switch (to) {
+            case "Fahrenheit" -> celsiusToFahrenheit(celsiusValue);
+            case "Kelvin" -> celsiusValue + 273.15;
+            default -> celsiusValue;
+        };
+    }
 }

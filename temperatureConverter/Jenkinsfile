@@ -60,7 +60,7 @@ pipeline {
         stage('Run Docker Image') {
             steps {
                 dir('temperatureConverter') {
-                    sh 'docker run --rm $DOCKER_IMAGE:latest'
+                    sh 'docker run --rm $DOCKER_IMAGE:latest mvn test'
                 }
             }
         }
