@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>temperatureConverterApp.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">temperature-converter</a> &gt; <a href="index.source.html" class="el_package">default</a> &gt; <span class="el_source">temperatureConverterApp.java</span></div><h1>temperatureConverterApp.java</h1><pre class="source lang-java linenums">import java.nio.file.Path;
+import java.sql.SQLException;
+
+import javafx.application.Application;
+import javafx.geometry.Insets;
+import javafx.scene.Scene;
+import javafx.scene.control.Button;
+import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.TextField;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.Stage;
+
+<span class="nc" id="L16">public class temperatureConverterApp extends Application {</span>
+<span class="nc" id="L17">    private final temperatureConverter converter = new temperatureConverter();</span>
+<span class="nc" id="L18">    private final ConversionDatabase database = new ConversionDatabase(Path.of(&quot;conversions.db&quot;));</span>
+
+    @Override
+    public void start(Stage stage) throws SQLException {
+<span class="nc" id="L22">        database.initialize();</span>
+
+<span class="nc" id="L24">        TextField input = new TextField();</span>
+<span class="nc" id="L25">        input.setPromptText(I18n.get(&quot;temperature&quot;));</span>
+<span class="nc" id="L26">        ComboBox&lt;ConversionDatabase.Unit&gt; from = new ComboBox&lt;&gt;();</span>
+<span class="nc" id="L27">        ComboBox&lt;ConversionDatabase.Unit&gt; to = new ComboBox&lt;&gt;();</span>
+<span class="nc" id="L28">        from.getItems().addAll(database.getUnits());</span>
+<span class="nc" id="L29">        to.getItems().addAll(database.getUnits());</span>
+<span class="nc" id="L30">        from.getSelectionModel().selectFirst();</span>
+<span class="nc" id="L31">        to.getSelectionModel().select(1);</span>
+
+<span class="nc" id="L33">        Label result = new Label(I18n.get(&quot;enterTemperature&quot;));</span>
+<span class="nc" id="L34">        ListView&lt;String&gt; history = new ListView&lt;&gt;();</span>
+<span class="nc" id="L35">        history.getItems().addAll(database.getHistory());</span>
+
+<span class="nc" id="L37">        Button convert = new Button(I18n.get(&quot;convert&quot;));</span>
+<span class="nc" id="L38">        convert.setOnAction(event -&gt; {</span>
+            try {
+<span class="nc" id="L40">                double value = Double.parseDouble(input.getText());</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">                if (!Double.isFinite(value)) {</span>
+<span class="nc" id="L42">                    throw new NumberFormatException();</span>
+                }
+<span class="nc" id="L44">                double converted = converter.convert(value, from.getValue().name(), to.getValue().name());</span>
+<span class="nc" id="L45">                database.saveConversion(value, from.getValue(), to.getValue(), converted);</span>
+<span class="nc" id="L46">                result.setText(I18n.format(&quot;conversionResult&quot;, value,</span>
+<span class="nc" id="L47">                        from.getValue(), converted, to.getValue()));</span>
+<span class="nc" id="L48">                history.getItems().setAll(database.getHistory());</span>
+<span class="nc" id="L49">            } catch (NumberFormatException exception) {</span>
+<span class="nc" id="L50">                result.setText(I18n.get(&quot;invalidNumber&quot;));</span>
+<span class="nc" id="L51">            } catch (SQLException exception) {</span>
+<span class="nc" id="L52">                result.setText(I18n.format(&quot;databaseError&quot;, exception.getMessage()));</span>
+<span class="nc" id="L53">            }</span>
+<span class="nc" id="L54">        });</span>
+
+<span class="nc" id="L56">        HBox choices = new HBox(10, input, from, new Label(I18n.get(&quot;to&quot;)), to);</span>
+<span class="nc" id="L57">        VBox content = new VBox(10, choices, convert, result, new Label(I18n.get(&quot;recentConversions&quot;)), history);</span>
+<span class="nc" id="L58">        content.setPadding(new Insets(15));</span>
+<span class="nc" id="L59">        stage.setTitle(I18n.get(&quot;title&quot;));</span>
+<span class="nc" id="L60">        stage.setScene(new Scene(content, 550, 350));</span>
+<span class="nc" id="L61">        stage.show();</span>
+<span class="nc" id="L62">    }</span>
+
+    public static void main(String[] args) {
+<span class="nc" id="L65">        launch(args);</span>
+<span class="nc" id="L66">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

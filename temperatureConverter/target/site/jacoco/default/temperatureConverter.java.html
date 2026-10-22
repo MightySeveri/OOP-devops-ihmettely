@@ -29,5 +29,18 @@
 <span class="fc" id="L29">            return false;</span>
         }
     }
+
+    double convert(double value, String from, String to) {
+<span class="fc bfc" id="L34" title="All 3 branches covered.">        double celsiusValue = switch (from) {</span>
+<span class="fc" id="L35">            case &quot;Fahrenheit&quot; -&gt; fahrenheitToCelsius(value);</span>
+<span class="fc" id="L36">            case &quot;Kelvin&quot; -&gt; kelvinToCelsius(value);</span>
+<span class="fc" id="L37">            default -&gt; value;</span>
+        };
+<span class="pc bpc" id="L39" title="1 of 3 branches missed.">        return switch (to) {</span>
+<span class="fc" id="L40">            case &quot;Fahrenheit&quot; -&gt; celsiusToFahrenheit(celsiusValue);</span>
+<span class="fc" id="L41">            case &quot;Kelvin&quot; -&gt; celsiusValue + 273.15;</span>
+<span class="nc" id="L42">            default -&gt; celsiusValue;</span>
+        };
+    }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
