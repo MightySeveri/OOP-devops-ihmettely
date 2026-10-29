@@ -9,8 +9,8 @@ This project is a desktop temperature converter for Celsius, Fahrenheit, and Kel
 | Tool | Purpose |
 | --- | --- |
 | Java 21 | Application language and compilation target |
-| JavaFX 21.0.8 | Desktop user interface |
-| SQLite and sqlite-jdbc 3.46.1.0 | Local storage through JDBC |
+| JavaFX 23.0.2 | Desktop user interface |
+| SQLite and sqlite-jdbc 3.53.4.0 | Local storage through JDBC |
 | Maven | Dependency management, build, and test execution |
 | JUnit Jupiter 5.11.4 | Automated unit and database tests |
 | JaCoCo 0.8.12 | Test coverage reports |
