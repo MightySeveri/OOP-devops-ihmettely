@@ -1,4 +1,4 @@
-# JavaFX temperature converter (uses a local SQLite database).
+# JavaFX temperature converter
 apiVersion: apps/v1
 kind: Deployment
 metadata:
