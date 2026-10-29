@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
+RUN mkdir -p /opt/sqlite-tmp && chmod 1777 /opt/sqlite-tmp
+ENV JAVA_TOOL_OPTIONS="-Dorg.sqlite.tmpdir=/opt/sqlite-tmp"
+
 COPY pom.xml .
 COPY . .
 
