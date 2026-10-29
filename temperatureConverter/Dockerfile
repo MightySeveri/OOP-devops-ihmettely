@@ -1,7 +1,7 @@
 FROM maven:3.9-eclipse-temurin-21
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgtk-3-0 libxtst6 libxrender1 libxi6 libgl1 fonts-not-cjk \
+    libgtk-3-0 libxtst6 libxrender1 libxi6 libgl1 fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
