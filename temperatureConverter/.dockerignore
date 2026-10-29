@@ -1,0 +1,4 @@
+.git
+target
+*.digest
+conversions.db*

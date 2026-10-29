@@ -1,9 +1,16 @@
-
 pipeline {
-    agent any
+    agent none
 
     options {
         skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+    }
+
+    parameters {
+        string(name: 'AMD64_WORKER_LABEL', defaultValue: 'linux && amd64 && docker',
+            description: 'Jenkins label expression for a native AMD64 worker with Docker and Buildx')
+        string(name: 'ARM64_WORKER_LABEL', defaultValue: 'linux && arm64 && docker',
+            description: 'Jenkins label expression for a native ARM64 worker with Docker, Buildx, Java 21, Maven and Xvfb')
     }
 
     environment {
@@ -11,75 +18,142 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Build and Test') {
-            environment {
-                DB_URL = 'jdbc:h2:mem:pakettimies;MODE=MariaDB;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1'
-                DB_USERNAME = 'sa'
-                DB_PASSWORD = ''
-            }
-            steps {
-                dir('temperatureConverter') {
-                    sh 'xvfb-run -a -s "-screen 0 1280x1024x24" mvn -B clean verify'
+        stage('Source and Coverage') {
+            agent { label "${params.ARM64_WORKER_LABEL}" }
+            stages {
+                stage('Checkout') {
+                    steps {
+                        checkout scm
+                        dir('temperatureConverter') {
+                            stash name: 'converter-source', includes: '**',
+                                excludes: 'target/**,conversions.db*,*.digest'
+                        }
+                    }
                 }
-            }
-            post {
-                always {
-                    dir('temperatureConverter') {
-                        sh 'mvn -B jacoco:report'
-                        junit 'target/surefire-reports/*.xml'
-                        jacoco(
-                            execPattern: 'target/jacoco.exec',
-                            classPattern: 'target/classes',
-                            sourcePattern: 'src/main/java'
-                        )
-                        archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+
+                stage('Build and Test') {
+                    steps {
+                        dir('temperatureConverter') {
+                            sh 'xvfb-run -a -s "-screen 0 1280x1024x24" mvn -B clean verify'
+                        }
+                    }
+                    post {
+                        always {
+                            dir('temperatureConverter') {
+                                junit 'target/surefire-reports/*.xml'
+                                jacoco(
+                                    execPattern: 'target/jacoco.exec',
+                                    classPattern: 'target/classes',
+                                    sourcePattern: 'src/main/java'
+                                )
+                                archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+                            }
+                        }
                     }
                 }
             }
         }
 
-        stage('Build and Push Multi-Platform Docker Image') {
+        stage('Build Native Docker Images') {
+            matrix {
+                axes {
+                    axis {
+                        name 'ARCH'
+                        values 'amd64', 'arm64'
+                    }
+                }
+                agent {
+                    label "${ARCH == 'amd64' ? params.AMD64_WORKER_LABEL : params.ARM64_WORKER_LABEL}"
+                }
+                stages {
+                    stage('Build, Test and Push by Digest') {
+                        steps {
+                            dir('temperatureConverter') {
+                                deleteDir()
+                                unstash 'converter-source'
+                                withCredentials([
+                                    usernamePassword(credentialsId: 'dockerhub',
+                                        usernameVariable: 'DOCKER_USERNAME',
+                                        passwordVariable: 'DOCKER_PASSWORD')
+                                ]) {
+                                    sh '''
+                                        set -eu
+                                        test -n "$DOCKER_IMAGE"
+
+                                        case "$(uname -m)" in
+                                            x86_64) worker_arch=amd64 ;;
+                                            aarch64|arm64) worker_arch=arm64 ;;
+                                            *) echo "Unsupported worker architecture" >&2; exit 1 ;;
+                                        esac
+                                        daemon_arch=$(docker info --format '{{.Architecture}}')
+                                        case "$daemon_arch" in
+                                            x86_64) daemon_arch=amd64 ;;
+                                            aarch64) daemon_arch=arm64 ;;
+                                        esac
+                                        if [ "$worker_arch" != "$ARCH" ] || [ "$daemon_arch" != "$ARCH" ]; then
+                                            echo "Native $ARCH required; worker=$worker_arch, Docker=$daemon_arch" >&2
+                                            exit 1
+                                        fi
+
+                                        set +x
+                                        build_tmp=$(mktemp -d)
+                                        export DOCKER_CONFIG="$build_tmp/docker"
+                                        mkdir -p "$DOCKER_CONFIG"
+                                        builder="native-$(basename "$build_tmp")"
+                                        trap 'docker buildx rm "$builder" >/dev/null 2>&1 || true; rm -rf "$build_tmp"' EXIT
+
+                                        docker buildx version
+                                        docker buildx create --name "$builder" --driver docker-container
+                                        docker buildx inspect --builder "$builder" --bootstrap
+                                        printf '%s' "$DOCKER_PASSWORD" | docker login \
+                                            --username "$DOCKER_USERNAME" --password-stdin
+
+                                        # The Dockerfile runs all tests, including SQLite, on this native worker.
+                                        # Upload without a tag; only the combined image receives :latest.
+                                        docker buildx build \
+                                            --builder "$builder" \
+                                            --platform "linux/$ARCH" \
+                                            --iidfile "$ARCH.digest" \
+                                            --output "type=image,name=$DOCKER_IMAGE,push-by-digest=true,name-canonical=true,push=true" \
+                                            .
+                                    '''
+                                }
+                                stash name: "image-${ARCH}", includes: "${ARCH}.digest"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Publish Multi-Platform Latest') {
+            agent { label "${params.ARM64_WORKER_LABEL}" }
             steps {
-                dir('temperatureConverter') {
+                dir('image-manifest') {
+                    unstash 'image-amd64'
+                    unstash 'image-arm64'
                     withCredentials([
-                        usernamePassword(
-                            credentialsId: 'dockerhub',
+                        usernamePassword(credentialsId: 'dockerhub',
                             usernameVariable: 'DOCKER_USERNAME',
-                            passwordVariable: 'DOCKER_PASSWORD'
-                        )
+                            passwordVariable: 'DOCKER_PASSWORD')
                     ]) {
                         sh '''
                             set -eu
-                            test -n "$DOCKER_IMAGE"
-                            docker buildx version
-
+                            amd64_digest=$(cat amd64.digest)
+                            arm64_digest=$(cat arm64.digest)
                             set +x
                             export DOCKER_CONFIG="$(mktemp -d)"
                             trap 'rm -rf "$DOCKER_CONFIG"' EXIT
-
-                            docker buildx create \
-                                --name multiplatform \
-                                --driver docker-container \
-                                --use
-
-                            docker buildx inspect --bootstrap
-
                             printf '%s' "$DOCKER_PASSWORD" | docker login \
-                                --username "$DOCKER_USERNAME" \
-                                --password-stdin
+                                --username "$DOCKER_USERNAME" --password-stdin
 
-                            docker buildx build \
-                                --builder multiplatform \
-                                --platform linux/amd64,linux/arm64 \
+                            # This stage runs only after both native builds and their tests succeed.
+                            docker buildx imagetools create \
                                 --tag "$DOCKER_IMAGE:latest" \
-                                --push .
-                            '''
+                                "$DOCKER_IMAGE@$amd64_digest" \
+                                "$DOCKER_IMAGE@$arm64_digest"
+                            docker buildx imagetools inspect "$DOCKER_IMAGE:latest"
+                        '''
                     }
                 }
             }

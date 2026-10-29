@@ -12,6 +12,6 @@ ENV JAVA_TOOL_OPTIONS="-Dorg.sqlite.tmpdir=/opt/sqlite-tmp"
 COPY pom.xml .
 COPY . .
 
-RUN mvn clean test dependency:go-offline
+RUN mvn -B -ntp clean test dependency:go-offline
 
 CMD ["mvn", "-o", "javafx:run"]
