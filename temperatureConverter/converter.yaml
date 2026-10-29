@@ -1,0 +1,22 @@
+# JavaFX temperature converter (uses a local SQLite database).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: temperature-converter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: temperature-converter
+  template:
+    metadata:
+      labels:
+        app: temperature-converter
+    spec:
+      containers:
+        - name: temperature-converter
+          image: mightyseveri/severi-temperatureconverter-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DISPLAY
+              value: "host.minikube.internal:0.0"

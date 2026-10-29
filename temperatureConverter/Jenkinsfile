@@ -24,57 +24,63 @@ pipeline {
                 DB_PASSWORD = ''
             }
             steps {
-                sh 'xvfb-run -a -s "-screen 0 1280x1024x24" mvn -B clean verify'
+                dir('temperatureConverter') {
+                    sh 'xvfb-run -a -s "-screen 0 1280x1024x24" mvn -B clean verify'
+                }
             }
             post {
                 always {
-                    sh 'mvn -B jacoco:report'
-                    junit 'target/surefire-reports/*.xml'
-                    jacoco(
-                        execPattern: 'target/jacoco.exec',
-                        classPattern: 'target/classes',
-                        sourcePattern: 'src/main/java'
-                    )
-                    archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+                    dir('temperatureConverter') {
+                        sh 'mvn -B jacoco:report'
+                        junit 'target/surefire-reports/*.xml'
+                        jacoco(
+                            execPattern: 'target/jacoco.exec',
+                            classPattern: 'target/classes',
+                            sourcePattern: 'src/main/java'
+                        )
+                        archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
+                    }
                 }
             }
         }
 
         stage('Build and Push Multi-Platform Docker Image') {
             steps {
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: 'dockerhub',
-                        usernameVariable: 'DOCKER_USERNAME',
-                        passwordVariable: 'DOCKER_PASSWORD'
-                    )
-                ]) {
-                    sh '''
-                        set -eu
-                        test -n "$DOCKER_IMAGE"
-                        docker buildx version
+                dir('temperatureConverter') {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub',
+                            usernameVariable: 'DOCKER_USERNAME',
+                            passwordVariable: 'DOCKER_PASSWORD'
+                        )
+                    ]) {
+                        sh '''
+                            set -eu
+                            test -n "$DOCKER_IMAGE"
+                            docker buildx version
 
-                        set +x
-                        export DOCKER_CONFIG="$(mktemp -d)"
-                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+                            set +x
+                            export DOCKER_CONFIG="$(mktemp -d)"
+                            trap 'rm -rf "$DOCKER_CONFIG"' EXIT
 
-                        docker buildx create \
-                            --name multiplatform \
-                            --driver docker-container \
-                            --use
+                            docker buildx create \
+                                --name multiplatform \
+                                --driver docker-container \
+                                --use
 
-                        docker buildx inspect --bootstrap
+                            docker buildx inspect --bootstrap
 
-                        printf '%s' "$DOCKER_PASSWORD" | docker login \
-                            --username "$DOCKER_USERNAME" \
-                            --password-stdin
+                            printf '%s' "$DOCKER_PASSWORD" | docker login \
+                                --username "$DOCKER_USERNAME" \
+                                --password-stdin
 
-                        docker buildx build \
-                            --builder multiplatform \
-                            --platform linux/amd64,linux/arm64 \
-                            --tag "$DOCKER_IMAGE:latest" \
-                            --push .
-                        '''
+                            docker buildx build \
+                                --builder multiplatform \
+                                --platform linux/amd64,linux/arm64 \
+                                --tag "$DOCKER_IMAGE:latest" \
+                                --push .
+                            '''
+                    }
                 }
             }
         }
