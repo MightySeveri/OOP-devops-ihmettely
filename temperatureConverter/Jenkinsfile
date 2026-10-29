@@ -1,91 +1,81 @@
+
 pipeline {
     agent any
+
+    options {
+        skipDefaultCheckout(true)
+    }
 
     environment {
         DOCKER_IMAGE = 'mightyseveri/severi-temperatureconverter-pipeline'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Build') {
+        stage('Build and Test') {
+            environment {
+                DB_URL = 'jdbc:h2:mem:pakettimies;MODE=MariaDB;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1'
+                DB_USERNAME = 'sa'
+                DB_PASSWORD = ''
+            }
             steps {
-                dir('temperatureConverter') {
-                    sh 'mvn clean install'
+                sh 'xvfb-run -a -s "-screen 0 1280x1024x24" mvn -B clean verify'
+            }
+            post {
+                always {
+                    sh 'mvn -B jacoco:report'
+                    junit 'target/surefire-reports/*.xml'
+                    jacoco(
+                        execPattern: 'target/jacoco.exec',
+                        classPattern: 'target/classes',
+                        sourcePattern: 'src/main/java'
+                    )
+                    archiveArtifacts artifacts: 'target/site/jacoco/**', allowEmptyArchive: true
                 }
             }
         }
 
-        stage('Test') {
-            steps {
-                dir('temperatureConverter') {
-                    sh 'mvn test'
-                }
-            }
-        }
-
-        stage('Code Coverage') {
-            steps {
-                dir('temperatureConverter') {
-                    sh 'mvn jacoco:report'
-                }
-            }
-        }
-
-        stage('Publish Test Results') {
-            steps {
-                junit 'temperatureConverter/target/surefire-reports/*.xml'
-            }
-        }
-
-        stage('Publish Coverage Report') {
-            steps {
-                jacoco()
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                dir('temperatureConverter') {
-                    sh 'docker build -t $DOCKER_IMAGE:latest .'
-                }
-            }
-        }
-
-        stage('Run Docker Image') {
-            steps {
-                dir('temperatureConverter') {
-                    sh 'docker run --rm $DOCKER_IMAGE:latest mvn test'
-                }
-            }
-        }
-
-        stage('Docker Hub Login') {
+        stage('Build and Push Multi-Platform Docker Image') {
             steps {
                 withCredentials([
                     usernamePassword(
-                        credentialsId: '224db388-8728-4443-b914-597f64f7db4b',
+                        credentialsId: 'dockerhub',
                         usernameVariable: 'DOCKER_USERNAME',
                         passwordVariable: 'DOCKER_PASSWORD'
                     )
                 ]) {
                     sh '''
-                        echo "$DOCKER_PASSWORD" | docker login \
+                        set -eu
+                        test -n "$DOCKER_IMAGE"
+                        docker buildx version
+
+                        set +x
+                        export DOCKER_CONFIG="$(mktemp -d)"
+                        trap 'rm -rf "$DOCKER_CONFIG"' EXIT
+
+                        docker buildx create \
+                            --name multiplatform \
+                            --driver docker-container \
+                            --use
+
+                        docker buildx inspect --bootstrap
+
+                        printf '%s' "$DOCKER_PASSWORD" | docker login \
                             --username "$DOCKER_USERNAME" \
                             --password-stdin
-                    '''
-                }
-            }
-        }
 
-        stage('Push to Docker Hub') {
-            steps {
-                sh 'docker push $DOCKER_IMAGE:latest'
+                        docker buildx build \
+                            --builder multiplatform \
+                            --platform linux/amd64,linux/arm64 \
+                            --tag "$DOCKER_IMAGE:latest" \
+                            --push .
+                        '''
+                }
             }
         }
     }
