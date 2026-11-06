@@ -4,6 +4,24 @@
 
 This project is a desktop temperature converter for Celsius, Fahrenheit, and Kelvin. The deliverable is a JavaFX application that accepts a temperature and two units, displays the converted value, and saves each successful conversion to a SQLite database. The window also shows the 20 most recent conversions. The repository includes automated tests, a Maven build, a Docker image definition, and a Jenkins pipeline.
 
+## 1.5 Justification for Database Table-Based Localization
+
+The application uses database tables for localization instead of traditional `.properties` files. This approach was chosen to integrate localization directly into the application's existing relational database architecture.
+
+Storing translations in database tables allows the application to retrieve language-specific text using SQL queries. This provides a centralized and structured method for managing translations without maintaining separate resource files for each supported language.
+
+The main advantages of this approach are:
+
+- **Centralized management:** Translations are stored and managed within the database rather than distributed across multiple files.
+- **Scalability:** Additional languages and translation entries can be introduced by inserting new database records without modifying the application's localization logic.
+- **Maintainability:** Existing translations can be updated independently of the application's compiled source code.
+- **Database integration:** The approach makes use of the application's existing database infrastructure, reducing the need for a separate localization system.
+- **Consistency:** A shared translation structure allows the same retrieval logic to be used across all supported languages.
+
+Although traditional `.properties` files are simpler for small Java applications, database-based localization provides greater flexibility for applications that already depend on relational databases.
+
+**The decision prioritizes centralized data management, extensibility, and integration with the existing database architecture over the simplicity of file-based localization.**
+
 ## 2. Technologies & Tools Used
 
 | Tool | Purpose |
@@ -66,7 +84,7 @@ docker run --rm --network none \
   -e DISPLAY -e XAUTHORITY=/tmp/.Xauthority \
   -v /tmp/.X11-unix:/tmp/.X11-unix \
   -v "$XAUTHORITY:/tmp/.Xauthority:ro" \
-  temperature-converter
+  mightyseveri/severi-temperatureconverter-pipeline
 ```
 
 The Docker command uses a temporary container, so its `conversions.db` history is lost when the container exits unless a persistent volume is mounted.
