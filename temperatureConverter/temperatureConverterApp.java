@@ -4,6 +4,7 @@ import java.util.Locale;
 
 import javafx.application.Application;
 import javafx.geometry.Insets;
+import javafx.geometry.NodeOrientation;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ChoiceDialog;
@@ -22,7 +23,7 @@ public class temperatureConverterApp extends Application {
     @Override
     public void start(Stage stage) throws SQLException {
         ChoiceDialog<String> language = new ChoiceDialog<>(
-                "English", "English", "Suomi", "Svenska", "日本語");
+                "English", "English", "Suomi", "Svenska", "日本語", "العربية");
         language.setTitle("Language");
         language.setHeaderText("Select a language");
         language.setContentText("Language:");
@@ -31,23 +32,32 @@ public class temperatureConverterApp extends Application {
             case "Suomi" -> Locale.forLanguageTag("fi");
             case "Svenska" -> Locale.forLanguageTag("sv");
             case "日本語" -> Locale.JAPANESE;
+            case "العربية" -> Locale.forLanguageTag("ar");
             default -> Locale.ENGLISH;
         });
 
         database.initialize();
+        String databaseLanguage = I18n.getLocale().getLanguage();
 
         TextField input = new TextField();
         input.setPromptText(I18n.get("temperature"));
         ComboBox<ConversionDatabase.Unit> from = new ComboBox<>();
         ComboBox<ConversionDatabase.Unit> to = new ComboBox<>();
-        from.getItems().addAll(database.getUnits());
-        to.getItems().addAll(database.getUnits());
+        from.getItems().addAll(database.getUnits(databaseLanguage));
+        to.getItems().addAll(database.getUnits(databaseLanguage));
         from.getSelectionModel().selectFirst();
         to.getSelectionModel().select(1);
 
+        Label fromDescription = new Label(from.getValue().description());
+        Label toDescription = new Label(to.getValue().description());
+        from.valueProperty().addListener((observable, oldUnit, unit) ->
+                fromDescription.setText(unit.description()));
+        to.valueProperty().addListener((observable, oldUnit, unit) ->
+                toDescription.setText(unit.description()));
+
         Label result = new Label(I18n.get("enterTemperature"));
         ListView<String> history = new ListView<>();
-        history.getItems().addAll(database.getHistory());
+        history.getItems().addAll(database.getHistory(databaseLanguage));
 
         Button convert = new Button(I18n.get("convert"));
         convert.setOnAction(event -> {
@@ -56,11 +66,11 @@ public class temperatureConverterApp extends Application {
                 if (!Double.isFinite(value)) {
                     throw new NumberFormatException();
                 }
-                double converted = converter.convert(value, from.getValue().name(), to.getValue().name());
+                double converted = converter.convert(value, from.getValue().key(), to.getValue().key());
                 database.saveConversion(value, from.getValue(), to.getValue(), converted);
                 result.setText(I18n.format("conversionResult", value,
                         from.getValue(), converted, to.getValue()));
-                history.getItems().setAll(database.getHistory());
+                history.getItems().setAll(database.getHistory(databaseLanguage));
             } catch (NumberFormatException exception) {
                 result.setText(I18n.get("invalidNumber"));
             } catch (SQLException exception) {
@@ -69,7 +79,10 @@ public class temperatureConverterApp extends Application {
         });
 
         HBox choices = new HBox(10, input, from, new Label(I18n.get("to")), to);
-        VBox content = new VBox(10, choices, convert, result, new Label(I18n.get("recentConversions")), history);
+        VBox content = new VBox(10, choices, fromDescription, toDescription, convert, result,
+                new Label(I18n.get("recentConversions")), history);
+        content.setNodeOrientation(databaseLanguage.equals("ar")
+                ? NodeOrientation.RIGHT_TO_LEFT : NodeOrientation.LEFT_TO_RIGHT);
         content.setPadding(new Insets(15));
         stage.setTitle(I18n.get("title"));
         stage.setScene(new Scene(content, 550, 350));

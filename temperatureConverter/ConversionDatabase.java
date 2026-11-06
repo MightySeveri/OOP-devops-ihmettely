@@ -1,3 +1,6 @@
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -9,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 class ConversionDatabase {
-    record Unit(int id, String name) {
+    record Unit(int id, String key, String name, String description) {
         @Override
         public String toString() {
             return name;
@@ -31,26 +34,40 @@ class ConversionDatabase {
     }
 
     void initialize() throws SQLException {
-        try (Connection connection = connect(); Statement statement = connection.createStatement()) {
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS units ("
-                    + "id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE)");
-            statement.executeUpdate("CREATE TABLE IF NOT EXISTS conversions ("
-                    + "id INTEGER PRIMARY KEY, input_value REAL NOT NULL, "
-                    + "from_unit_id INTEGER NOT NULL REFERENCES units(id), "
-                    + "to_unit_id INTEGER NOT NULL REFERENCES units(id), "
-                    + "result_value REAL NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)");
-            statement.executeUpdate("INSERT OR IGNORE INTO units (id, name) VALUES "
-                    + "(1, 'Celsius'), (2, 'Fahrenheit'), (3, 'Kelvin')");
+        try (InputStream script = ConversionDatabase.class.getResourceAsStream("/init.sql");
+             Connection connection = connect(); Statement statement = connection.createStatement()) {
+            if (script == null) {
+                throw new SQLException("Missing init.sql");
+            }
+            for (String sql : new String(script.readAllBytes(), StandardCharsets.UTF_8).split(";")) {
+                if (!sql.isBlank()) {
+                    statement.executeUpdate(sql);
+                }
+            }
+        } catch (IOException exception) {
+            throw new SQLException("Cannot read init.sql", exception);
         }
     }
 
-    List<Unit> getUnits() throws SQLException {
+    private String unitTable(String language) {
+        return switch (language) {
+            case "fi", "sv", "ja", "ar" -> "unit_" + language;
+            default -> "unit_en";
+        };
+    }
+
+    List<Unit> getUnits(String language) throws SQLException {
         List<Unit> units = new ArrayList<>();
+        String sql = "SELECT u.id, u.name AS unit_key, COALESCE(l.name, e.name) AS name, "
+                + "COALESCE(l.description, e.description) AS description FROM units u "
+                + "JOIN unit_en e ON e.id = u.id "
+                + "LEFT JOIN " + unitTable(language) + " l ON l.id = u.id ORDER BY u.id";
         try (Connection connection = connect();
              Statement statement = connection.createStatement();
-             ResultSet results = statement.executeQuery("SELECT id, name FROM units ORDER BY id")) {
+             ResultSet results = statement.executeQuery(sql)) {
             while (results.next()) {
-                units.add(new Unit(results.getInt("id"), results.getString("name")));
+                units.add(new Unit(results.getInt("id"), results.getString("unit_key"),
+                        results.getString("name"), results.getString("description")));
             }
         }
         return units;
@@ -68,12 +85,15 @@ class ConversionDatabase {
         }
     }
 
-    List<String> getHistory() throws SQLException {
+    List<String> getHistory(String language) throws SQLException {
         List<String> history = new ArrayList<>();
-        String sql = "SELECT c.input_value, f.name AS from_name, c.result_value, "
-                + "t.name AS to_name, c.created_at FROM conversions c "
-                + "JOIN units f ON c.from_unit_id = f.id "
-                + "JOIN units t ON c.to_unit_id = t.id ORDER BY c.id DESC LIMIT 20";
+        String sql = "SELECT c.input_value, COALESCE(f.name, ef.name) AS from_name, c.result_value, "
+                + "COALESCE(t.name, et.name) AS to_name, c.created_at FROM conversions c "
+                + "JOIN unit_en ef ON c.from_unit_id = ef.id "
+                + "JOIN unit_en et ON c.to_unit_id = et.id "
+                + "LEFT JOIN " + unitTable(language) + " f ON c.from_unit_id = f.id "
+                + "LEFT JOIN " + unitTable(language) + " t ON c.to_unit_id = t.id "
+                + "ORDER BY c.id DESC LIMIT 20";
         try (Connection connection = connect();
              Statement statement = connection.createStatement();
              ResultSet results = statement.executeQuery(sql)) {
